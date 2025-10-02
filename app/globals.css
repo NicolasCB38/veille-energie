@@ -1,0 +1,71 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* Styles globaux personnalisés */
+@layer base {
+  h1 {
+    @apply text-4xl font-bold text-gray-900 mb-4;
+  }
+
+  h2 {
+    @apply text-2xl font-semibold text-gray-800 mt-6 mb-3;
+  }
+
+  h3 {
+    @apply text-xl font-semibold text-gray-700 mt-4 mb-2;
+  }
+
+  p {
+    @apply mb-4 text-gray-700;
+  }
+
+  a {
+    @apply text-blue-600 hover:text-blue-700 underline;
+  }
+
+  ul {
+    @apply list-disc pl-6 mb-4;
+  }
+
+  ol {
+    @apply list-decimal pl-6 mb-4;
+  }
+
+  blockquote {
+    @apply border-l-4 border-blue-500 pl-4 italic text-gray-600;
+  }
+}
+
+/* Amélioration du rendu Markdown (prose) */
+.prose {
+  @apply max-w-none;
+}
+
+.prose h1 {
+  @apply text-3xl font-bold text-gray-900 mb-4;
+}
+
+.prose h2 {
+  @apply text-2xl font-semibold text-gray-800 mt-6 mb-3;
+}
+
+.prose h3 {
+  @apply text-xl font-semibold text-gray-700 mt-4 mb-2;
+}
+
+.prose p {
+  @apply mb-4 text-gray-700;
+}
+
+.prose ul {
+  @apply list-disc pl-6 mb-4;
+}
+
+.prose ol {
+  @apply list-decimal pl-6 mb-4;
+}
+
+.prose blockquote {
+  @apply border-l-4 border-blue-500 pl-4 italic text-gray-600;
+}
