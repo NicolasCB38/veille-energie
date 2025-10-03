@@ -8,3 +8,5 @@ export async function GET(req) {
 
   return NextResponse.json({ ok: true });
 }
+
+console.log("CRON_SECRET on server:", process.env.CRON_SECRET);
