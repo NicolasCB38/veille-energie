@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import ReactMarkdown from "react-markdown";
 import ThemeToggle from "@/components/ThemeToggle";
-import OilPriceWidget from "@/components/OilPriceWidget";
+
 
 export default function EnergyNewsApp() {
   const [summary, setSummary] = useState<string | null>(null);
@@ -75,7 +75,6 @@ export default function EnergyNewsApp() {
           <a href="#" className="text-gray-600 dark:text-gray-300 hover:text-blue-600 dark:hover:text-blue-400">
             Résumé du jour
           </a>
-          <OilPriceWidget />
           <ThemeToggle />
         </div>
       </nav>
