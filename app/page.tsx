@@ -15,7 +15,7 @@ export default function EnergyNewsApp() {
     setLoading(true);
 
     try {
-      const res = await fetch("/api/summary", {
+      const res = await fetch("https://api.the-energy-briefs.com/api/summary", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
       });
