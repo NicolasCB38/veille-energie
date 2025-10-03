@@ -189,3 +189,15 @@ export async function POST() {
     return NextResponse.json({ summary: "Erreur lors de la génération du résumé." }, { status: 500 });
   }
 }
+
+export async function GET() {
+  try {
+    const summary = await getSummary();
+    return NextResponse.json({ summary });
+  } catch (e) {
+    console.error("Erreur API (summary - GET):", e);
+    return NextResponse.json({ summary: "Erreur lors de la génération du résumé." }, { status: 500 });
+  }
+}
+
+
