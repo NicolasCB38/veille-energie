@@ -8,31 +8,30 @@ const client = new OpenAI({
 
 const parser = new Parser();
 
-// 🌍 TOP 20 sources énergie (sélectionnées comme les plus pertinentes et diversifiées)
+// 🌍 TOP 20 sources pertinentes
 const RSS_URLS = [
-  "https://www.world-nuclear-news.org/rss",     // Nucléaire
-  "https://www.iaea.org/newscenter/news/rss",   // Agence internationale énergie atomique
-  "https://www.nucnet.org/feed",                // Nucléaire
-  "https://www.pv-magazine.com/feed/",          // Solaire
-  "https://renewablesnow.com/news/rss/",        // Renouvelables général
-  "https://www.rechargenews.com/rss",           // Stockage / renouvelables
-  "https://www.energy-storage.news/feed/",      // Batteries
-  "https://windeurope.org/newsroom/feed/",      // Éolien
-  "https://www.hydroreview.com/feed/",          // Hydro
-  "https://cleantechnica.com/category/energy/feed/", // Transition énergie
-  "https://oilprice.com/rss/main",              // Marché pétrole
-  "https://www.rigzone.com/news/rss/",          // Industrie pétrolière
-  "https://www.naturalgasworld.com/rss",        // Gaz naturel
-  "https://www.hydrogeninsight.com/atom",       // Hydrogène
-  "https://www.h2-view.com/rss/",               // Hydrogène
-  "https://www.euractiv.com/section/energy-environment/feed/", // UE énergie & climat
-  "https://www.iea.org/rss/news.rss",           // Agence internationale de l’énergie
-  "https://www.acer.europa.eu/rss.xml",         // Régulateur européen
-  "https://www.ofgem.gov.uk/news-and-updates/feed", // Régulateur UK
-  "https://www.carbonbrief.org/feed/"           // Décryptage climat & énergie
+  "https://www.world-nuclear-news.org/rss",
+  "https://www.iaea.org/newscenter/news/rss",
+  "https://www.nucnet.org/feed",
+  "https://www.pv-magazine.com/feed/",
+  "https://renewablesnow.com/news/rss/",
+  "https://www.rechargenews.com/rss",
+  "https://www.energy-storage.news/feed/",
+  "https://windeurope.org/newsroom/feed/",
+  "https://www.hydroreview.com/feed/",
+  "https://cleantechnica.com/category/energy/feed/",
+  "https://oilprice.com/rss/main",
+  "https://www.rigzone.com/news/rss/",
+  "https://www.naturalgasworld.com/rss",
+  "https://www.hydrogeninsight.com/atom",
+  "https://www.h2-view.com/rss/",
+  "https://www.euractiv.com/section/energy-environment/feed/",
+  "https://www.iea.org/rss/news.rss",
+  "https://www.acer.europa.eu/rss.xml",
+  "https://www.ofgem.gov.uk/news-and-updates/feed",
+  "https://www.carbonbrief.org/feed/"
 ];
 
-// 🧹 Nettoyage des caractères spéciaux (&)
 function fixAmpersands(xml) {
   return xml.replace(
     /&(?!#\d+;|#x[0-9a-fA-F]+;|amp;|lt;|gt;|quot;|apos;)/g,
@@ -40,7 +39,6 @@ function fixAmpersands(xml) {
   );
 }
 
-// 🧹 Nettoyage du texte
 function cleanText(text) {
   if (!text) return "";
   try {
@@ -51,7 +49,6 @@ function cleanText(text) {
   }
 }
 
-// 📡 Parsing RSS
 async function fetchAndParse(url) {
   const res = await fetch(url, {
     headers: {
@@ -68,7 +65,6 @@ async function fetchAndParse(url) {
   return parser.parseString(xml);
 }
 
-// 🕒 Articles récents (7 jours)
 const DAYS_WINDOW = 7;
 function isRecent(pubDate) {
   if (!pubDate) return true;
@@ -77,12 +73,10 @@ function isRecent(pubDate) {
   return Date.now() - d.getTime() <= DAYS_WINDOW * 24 * 3600 * 1000;
 }
 
-// 🔎 Normalisation pour éviter doublons
 function normalizeTitle(t) {
   return t.toLowerCase().replace(/\s+/g, " ").replace(/[^a-z0-9 ]/g, "").trim();
 }
 
-// 📊 Scoring thématique
 const WEIGHTS = {
   nuclear: 3, nucléaire: 3, reactor: 2, epr: 3, smr: 3,
   solar: 2, pv: 2, éolien: 2, wind: 2, offshore: 2,
@@ -104,7 +98,6 @@ function score(text) {
   return s + quant;
 }
 
-// 📥 Récupération articles
 async function gatherArticles() {
   const settled = await Promise.allSettled(RSS_URLS.map((u) => fetchAndParse(u)));
   const feeds = settled.filter(r => r.status === "fulfilled").map(r => r.value);
@@ -135,28 +128,27 @@ async function gatherArticles() {
   return items;
 }
 
-// 🗄️ Cache résumé
-let cachedSummary = null;
+// 🗄️ Cache HTML
+let cachedHTML = null;
 let lastGenerated = null;
 
-async function getSummary() {
+async function getHTMLSummary() {
   const now = Date.now();
   const ONE_HOUR = 60 * 60 * 1000;
 
-  if (cachedSummary && lastGenerated && now - lastGenerated < ONE_HOUR) {
-    console.log("⚡ Résumé servi depuis le cache");
-    return cachedSummary;
+  if (cachedHTML && lastGenerated && now - lastGenerated < ONE_HOUR) {
+    console.log("⚡ Résumé HTML servi depuis le cache");
+    return cachedHTML;
   }
 
-  console.log("⏳ Nouveau résumé généré");
+  console.log("⏳ Génération d'un nouveau résumé HTML");
   const items = await gatherArticles();
-  const TOP_N = 20; // max 20 articles
-  const top = items.slice(0, TOP_N);
+  const top = items.slice(0, 20);
 
-  if (top.length === 0) return "Aucun article pertinent sur la période.";
+  if (top.length === 0) return "<p>Aucun article pertinent sur la période.</p>";
 
   const prompt = top.map(i =>
-    `- **${i.title}** — ${i.snippet}\n  Source: ${i.link}`
+    `- <strong>${i.title}</strong> — ${i.snippet}<br/>Source: <a href="${i.link}">${i.link}</a>`
   ).join("\n\n");
 
   const completion = await client.chat.completions.create({
@@ -165,39 +157,26 @@ async function getSummary() {
       {
         role: "system",
         content:
-          "Tu es un analyste énergie. Résume en français et structure le contenu en Markdown. " +
+          "Tu es un analyste énergie. Résume en français et structure le contenu en HTML propre et minimaliste. " +
+          "Utilise <h2>, <p>, <ul>, <li>, <a>… Pas de Markdown. " +
           "Classe les infos par thèmes (Nucléaire, Renouvelables, Pétrole & Gaz, Marchés & Régulation). " +
-          "À la fin de chaque section, ajoute '### Sources' avec une liste de liens cliquables. " +
-          "Ajoute enfin une '### Conclusion' (2–3 phrases)."
+          "Termine par une <h2>Conclusion</h2> avec 2–3 phrases synthétiques."
       },
       { role: "user", content: prompt },
     ],
   });
 
-  cachedSummary = completion.choices[0].message?.content ?? "Résumé indisponible.";
+  cachedHTML = completion.choices[0].message?.content ?? "<p>Résumé indisponible.</p>";
   lastGenerated = now;
-  return cachedSummary;
+  return cachedHTML;
 }
 
-// 🚀 Endpoint API
 export async function POST() {
   try {
-    const summary = await getSummary();
-    return NextResponse.json({ summary });
+    const html = await getHTMLSummary();
+    return NextResponse.json({ html });
   } catch (e) {
     console.error("Erreur API (summary):", e);
-    return NextResponse.json({ summary: "Erreur lors de la génération du résumé." }, { status: 500 });
+    return NextResponse.json({ html: "<p>Erreur lors de la génération du résumé.</p>" }, { status: 500 });
   }
 }
-
-export async function GET() {
-  try {
-    const summary = await getSummary();
-    return NextResponse.json({ summary });
-  } catch (e) {
-    console.error("Erreur API (summary - GET):", e);
-    return NextResponse.json({ summary: "Erreur lors de la génération du résumé." }, { status: 500 });
-  }
-}
-
-
