@@ -150,7 +150,7 @@ async function getHTMLSummary() {
   let completion;
   try {
     completion = await client.chat.completions.create({
-      model: "gpt-5-mini", // ← Gardé tel quel comme tu as confirmé qu’il fonctionne
+      model: "gpt-5-mini", // ← Confirmé comme fonctionnel dans ton environnement
       messages: [
         {
           role: "system",
@@ -179,17 +179,48 @@ async function getHTMLSummary() {
   return cachedHTML;
 }
 
-// ✅ Handler POST
+// ✅ Handler POST : réponse avec CORS
 export async function POST() {
   try {
     console.log("📩 POST reçu : génération en cours");
     const html = await getHTMLSummary();
-    return NextResponse.json({ html });
+
+    return new NextResponse(
+      JSON.stringify({ html }),
+      {
+        status: 200,
+        headers: {
+          "Content-Type": "application/json",
+          "Access-Control-Allow-Origin": "*", // ← À restreindre à ton domaine Framer ensuite
+          "Access-Control-Allow-Methods": "POST, OPTIONS",
+          "Access-Control-Allow-Headers": "Content-Type, Authorization",
+        },
+      }
+    );
   } catch (e) {
     console.error("❌ Erreur API (summary):", e);
-    return NextResponse.json(
-      { html: "<p>Erreur lors de la génération du résumé.</p>" },
-      { status: 500 }
+    return new NextResponse(
+      JSON.stringify({ html: "<p>Erreur lors de la génération du résumé.</p>" }),
+      {
+        status: 500,
+        headers: {
+          "Access-Control-Allow-Origin": "*",
+          "Access-Control-Allow-Methods": "POST, OPTIONS",
+          "Access-Control-Allow-Headers": "Content-Type, Authorization",
+        },
+      }
     );
   }
+}
+
+// ✅ Handler OPTIONS : CORS préflight
+export async function OPTIONS() {
+  return new NextResponse(null, {
+    status: 204,
+    headers: {
+      "Access-Control-Allow-Origin": "*",
+      "Access-Control-Allow-Methods": "POST, OPTIONS",
+      "Access-Control-Allow-Headers": "Content-Type, Authorization",
+    },
+  });
 }
