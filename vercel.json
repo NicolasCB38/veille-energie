@@ -1,7 +1,0 @@
-{
-  "functions": {
-    "api/summary/cron/route.js": {
-      "schedule": "0 6,18 * * *"
-    }
-  }
-}
