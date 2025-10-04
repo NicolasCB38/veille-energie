@@ -1,3 +1,4 @@
+// app/api/summary/route.js
 import { NextResponse } from "next/server";
 import OpenAI from "openai";
 import Parser from "rss-parser";
@@ -8,7 +9,6 @@ const client = new OpenAI({
 
 const parser = new Parser();
 
-// 🌍 TOP 20 sources pertinentes
 const RSS_URLS = [
   "https://www.world-nuclear-news.org/rss",
   "https://www.iaea.org/newscenter/news/rss",
@@ -33,17 +33,13 @@ const RSS_URLS = [
 ];
 
 function fixAmpersands(xml) {
-  return xml.replace(
-    /&(?!#\d+;|#x[0-9a-fA-F]+;|amp;|lt;|gt;|quot;|apos;)/g,
-    "&amp;"
-  );
+  return xml.replace(/&(?!#\d+;|#x[0-9a-fA-F]+;|amp;|lt;|gt;|quot;|apos;)/g, "&amp;");
 }
 
 function cleanText(text) {
   if (!text) return "";
   try {
-    const str = String(text);
-    return str.replace(/<[^>]*>/g, " ").replace(/\s+/g, " ").trim();
+    return String(text).replace(/<[^>]*>/g, " ").replace(/\s+/g, " ").trim();
   } catch {
     return "";
   }
@@ -52,8 +48,7 @@ function cleanText(text) {
 async function fetchAndParse(url) {
   const res = await fetch(url, {
     headers: {
-      "user-agent":
-        "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/127.0 Safari/537.36",
+      "user-agent": "Mozilla/5.0",
       accept: "application/rss+xml, application/xml;q=0.9, */*;q=0.8",
     },
     cache: "no-store",
@@ -67,10 +62,8 @@ async function fetchAndParse(url) {
 
 const DAYS_WINDOW = 7;
 function isRecent(pubDate) {
-  if (!pubDate) return true;
   const d = new Date(pubDate);
-  if (isNaN(+d)) return true;
-  return Date.now() - d.getTime() <= DAYS_WINDOW * 24 * 3600 * 1000;
+  return !isNaN(+d) && Date.now() - d.getTime() <= DAYS_WINDOW * 86400000;
 }
 
 function normalizeTitle(t) {
@@ -99,7 +92,7 @@ function score(text) {
 }
 
 async function gatherArticles() {
-  const settled = await Promise.allSettled(RSS_URLS.map((u) => fetchAndParse(u)));
+  const settled = await Promise.allSettled(RSS_URLS.map(fetchAndParse));
   const feeds = settled.filter(r => r.status === "fulfilled").map(r => r.value);
 
   const seen = new Set();
@@ -112,8 +105,7 @@ async function gatherArticles() {
       const link = item.link || "";
       const pub = item.isoDate || item.pubDate;
 
-      if (!title || !link) return;
-      if (!isRecent(pub)) return;
+      if (!title || !link || !isRecent(pub)) return;
 
       const key = normalizeTitle(title);
       if (seen.has(key)) return;
@@ -124,7 +116,7 @@ async function gatherArticles() {
     });
   });
 
-  items.sort((a, b) => (b.sc - a.sc) || ((b.pub ? +new Date(b.pub) : 0) - (a.pub ? +new Date(a.pub) : 0)));
+  items.sort((a, b) => b.sc - a.sc || (+new Date(b.pub) - +new Date(a.pub)));
   return items;
 }
 
@@ -134,7 +126,7 @@ let lastGenerated = null;
 
 async function getHTMLSummary() {
   const now = Date.now();
-  const ONE_HOUR = 60 * 60 * 1000;
+  const ONE_HOUR = 3600000;
 
   if (cachedHTML && lastGenerated && now - lastGenerated < ONE_HOUR) {
     console.log("⚡ Résumé HTML servi depuis le cache");
@@ -142,41 +134,62 @@ async function getHTMLSummary() {
   }
 
   console.log("⏳ Génération d'un nouveau résumé HTML");
+
   const items = await gatherArticles();
   const top = items.slice(0, 20);
 
-  if (top.length === 0) return "<p>Aucun article pertinent sur la période.</p>";
+  if (top.length === 0) {
+    console.warn("🚨 Aucun article pertinent trouvé.");
+    return "<p>Aucun article pertinent sur la période.</p>";
+  }
 
   const prompt = top.map(i =>
     `- <strong>${i.title}</strong> — ${i.snippet}<br/>Source: <a href="${i.link}">${i.link}</a>`
   ).join("\n\n");
 
-  const completion = await client.chat.completions.create({
-    model: "gpt-5-mini",
-    messages: [
-      {
-        role: "system",
-        content:
-          "Tu es un analyste énergie. Résume en français et structure le contenu en HTML propre et minimaliste. " +
-          "Utilise <h2>, <p>, <ul>, <li>, <a>… Pas de Markdown. " +
-          "Classe les infos par thèmes (Nucléaire, Renouvelables, Pétrole & Gaz, Marchés & Régulation). " +
-          "Termine par une <h2>Conclusion</h2> avec 2–3 phrases synthétiques."
-      },
-      { role: "user", content: prompt },
-    ],
-  });
+  let completion;
+  try {
+    completion = await client.chat.completions.create({
+      model: "gpt-5-mini", // ← Gardé tel quel comme tu as confirmé qu’il fonctionne
+      messages: [
+        {
+          role: "system",
+          content:
+            "Tu es un analyste énergie. Résume en français et structure le contenu en HTML propre et minimaliste. " +
+            "Utilise <h2>, <p>, <ul>, <li>, <a>… Pas de Markdown. " +
+            "Classe les infos par thèmes (Nucléaire, Renouvelables, Pétrole & Gaz, Marchés & Régulation). " +
+            "Termine par une <h2>Conclusion</h2> avec 2–3 phrases synthétiques."
+        },
+        { role: "user", content: prompt }
+      ],
+    });
+  } catch (err) {
+    console.error("❌ Erreur lors de l'appel OpenAI:", err);
+    return "<p>Erreur lors de l’appel à OpenAI. Vérifiez les logs.</p>";
+  }
 
-  cachedHTML = completion.choices[0].message?.content ?? "<p>Résumé indisponible.</p>";
+  const content = completion?.choices?.[0]?.message?.content;
+  if (!content) {
+    console.warn("⚠️ OpenAI n’a pas retourné de contenu");
+    return "<p>Résumé vide ou indisponible.</p>";
+  }
+
+  cachedHTML = content;
   lastGenerated = now;
   return cachedHTML;
 }
 
+// ✅ Handler POST
 export async function POST() {
   try {
+    console.log("📩 POST reçu : génération en cours");
     const html = await getHTMLSummary();
     return NextResponse.json({ html });
   } catch (e) {
-    console.error("Erreur API (summary):", e);
-    return NextResponse.json({ html: "<p>Erreur lors de la génération du résumé.</p>" }, { status: 500 });
+    console.error("❌ Erreur API (summary):", e);
+    return NextResponse.json(
+      { html: "<p>Erreur lors de la génération du résumé.</p>" },
+      { status: 500 }
+    );
   }
 }
